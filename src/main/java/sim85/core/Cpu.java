@@ -6,6 +6,12 @@ public class Cpu{
     final private Flags flags ;
     final private Registers registers ;
     
+    private void loadImmediate() //Loads Immediate data to Reg I 
+    {
+        registers.incrementRegister(Reg.PC);
+        int immediateData=ram.read(registers.get(Reg.PC));
+        registers.set(Reg.I,immediateData);
+    }
     private void inx(Reg regPair ,boolean increase)
     {
         int valueOfPair;
@@ -57,6 +63,22 @@ public class Cpu{
         }
     }
 
+    private void add(Reg register,boolean useCarry)
+    {
+        int regValue;
+        if(register==Reg.M)
+        {
+            regValue=ram.read(registers.getPair(Reg.H,Reg.L));
+        }
+        else{
+            regValue=registers.get(register);
+        }
+        int aReg=registers.get(Reg.A);
+        int result=aReg+regValue + (int)(useCarry?flags.isCarry():0);
+        registers.set(register, result);
+        flags.updateAllFlags(result);
+    }
+
     private void decode(int instruction)
     {
         switch (instruction) {
@@ -66,28 +88,40 @@ public class Cpu{
     case 0x03 -> inx(Reg.B,true); // INX B
     case 0x04 -> inr(Reg.B,true); // INR B
     case 0x05 -> inr(Reg.B,false); // DCR B
-    case 0x06 -> {} // MVI B
+    case 0x06 -> {
+        loadImmediate();
+        mov(Reg.I,Reg.B);
+    } // MVI B
     case 0x07 -> {} // RLC
     case 0x09 -> {} // DAD B
     case 0x0A -> {} // LDAX B
     case 0x0B -> inx(Reg.B,false); // DCX B
     case 0x0C -> inr(Reg.C,true); // INR C
     case 0x0D -> inr(Reg.C,false); // DCR C
-    case 0x0E -> {} // MVI C
+    case 0x0E -> {
+        loadImmediate();
+        mov(Reg.I,Reg.C);
+    } // MVI C
     case 0x0F -> {} // RRC
     case 0x11 -> {} // LXI D
     case 0x12 -> {} // STAX D
     case 0x13 -> inx(Reg.D,true); // INX D
     case 0x14 -> inr(Reg.D,true); // INR D
     case 0x15 -> inr(Reg.D,false); // DCR D
-    case 0x16 -> {} // MVI D
+    case 0x16 -> {
+        loadImmediate();
+        mov(Reg.I,Reg.D);
+    } // MVI D
     case 0x17 -> {} // RAL
     case 0x19 -> {} // DAD D
     case 0x1A -> {} // LDAX D
     case 0x1B -> inx(Reg.D,false); // DCX D
     case 0x1C -> inr(Reg.E,true); // INR E
     case 0x1D -> inr(Reg.E,false); // DCR E
-    case 0x1E -> {} // MVI E
+    case 0x1E -> {
+        loadImmediate();
+        mov(Reg.I,Reg.E);
+    } // MVI E
     case 0x1F -> {} // RAR
     case 0x20 -> {} // RIM
     case 0x21 -> {} // LXI H
@@ -95,14 +129,20 @@ public class Cpu{
     case 0x23 -> inx(Reg.H,true); // INX H
     case 0x24 -> inr(Reg.H,true); // INR H
     case 0x25 -> inr(Reg.H,false); // DCR H
-    case 0x26 -> {} // MVI H
+    case 0x26 -> {
+        loadImmediate();
+        mov(Reg.I,Reg.H);
+    } // MVI H
     case 0x27 -> {} // DAA
     case 0x29 -> {} // DAD H
     case 0x2A -> {} // LHLD
     case 0x2B -> inx(Reg.H,false); // DCX H
     case 0x2C -> inr(Reg.L,true); // INR L
     case 0x2D -> inr(Reg.L,false); // DCR L
-    case 0x2E -> {} // MVI L
+    case 0x2E -> {
+        loadImmediate();
+        mov(Reg.I,Reg.L);
+    } // MVI L
     case 0x2F -> {} // CMA
     case 0x30 -> {} // SIM
     case 0x31 -> {} // LXI SP
@@ -110,14 +150,20 @@ public class Cpu{
     case 0x33 -> inx(Reg.SP,true); // INX SP
     case 0x34 -> inr(Reg.M,true); // INR M
     case 0x35 -> inr(Reg.M,false); // DCR M
-    case 0x36 -> {} // MVI M
+    case 0x36 -> {
+        loadImmediate();
+        mov(Reg.I,Reg.M);
+    } // MVI M
     case 0x37 -> {} // STC
     case 0x39 -> {} // DAD SP
     case 0x3A -> {} // LDA
     case 0x3B -> inx(Reg.SP,false); // DCX SP
     case 0x3C -> inr(Reg.A,true); // INR A
     case 0x3D -> inr(Reg.A,false); // DCR A
-    case 0x3E -> {} // MVI A
+    case 0x3E -> {
+        loadImmediate();
+        mov(Reg.I,Reg.A);    
+    } // MVI A
     case 0x3F -> {} // CMC
 
     case 0x40 -> mov(Reg.B,Reg.B); // MOV B,B
@@ -187,22 +233,22 @@ public class Cpu{
     case 0x7E -> mov(Reg.A,Reg.M); // MOV A,M
     case 0x7F -> mov(Reg.A,Reg.A); // MOV A,A
 
-    case 0x80 -> {} // ADD B
-    case 0x81 -> {} // ADD C
-    case 0x82 -> {} // ADD D
-    case 0x83 -> {} // ADD E
-    case 0x84 -> {} // ADD H
-    case 0x85 -> {} // ADD L
-    case 0x86 -> {} // ADD M
-    case 0x87 -> {} // ADD A
-    case 0x88 -> {} // ADC B
-    case 0x89 -> {} // ADC C
-    case 0x8A -> {} // ADC D
-    case 0x8B -> {} // ADC E
-    case 0x8C -> {} // ADC H
-    case 0x8D -> {} // ADC L
-    case 0x8E -> {} // ADC M
-    case 0x8F -> {} // ADC A
+    case 0x80 -> add(Reg.B,false); // ADD B
+    case 0x81 -> add(Reg.C,false); // ADD C
+    case 0x82 -> add(Reg.D,false); // ADD D
+    case 0x83 -> add(Reg.E,false); // ADD E
+    case 0x84 -> add(Reg.H,false); // ADD H
+    case 0x85 -> add(Reg.L,false); // ADD L
+    case 0x86 -> add(Reg.M,false); // ADD M
+    case 0x87 -> add(Reg.A,false); // ADD A
+    case 0x88 -> add(Reg.B,true); // ADC B
+    case 0x89 -> add(Reg.C,true); // ADC C
+    case 0x8A -> add(Reg.D,true); // ADC D
+    case 0x8B -> add(Reg.E,true); // ADC E
+    case 0x8C -> add(Reg.H,true); // ADC H
+    case 0x8D -> add(Reg.L,true); // ADC L
+    case 0x8E -> add(Reg.M,true); // ADC M
+    case 0x8F -> add(Reg.A,true); // ADC A
     case 0x90 -> {} // SUB B
     case 0x91 -> {} // SUB C
     case 0x92 -> {} // SUB D

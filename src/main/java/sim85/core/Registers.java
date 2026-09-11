@@ -3,22 +3,26 @@ package sim85.core;
 public class Registers {
     private int A, B, C, D, E, H, L; // 8-bit registers
     private int PC,SP;
+
+    private int I; // For Immediate Data will be set 
+    //and used from cpu to store immediate data for streamline
+
     public enum Reg {
-        A, B, C, D, E, H, L, PC, SP, M
+        A, B, C, D, E, H, L, PC, SP, M, I
     }//M for placeholder for memory
     public void incrementRegister(Reg register)
     {
         switch (register) {
-            case A: A++;
-            case B: B++;
-            case C: C++;
-            case D: D++;
-            case E: E++;
-            case H: H++;
-            case L: L++;
-            case PC: PC++;
-            case SP: SP++;
-            default: throw new IllegalArgumentException("Invalid register: " + register);
+            case A-> A++;
+            case B-> B++;
+            case C-> C++;
+            case D-> D++;
+            case E-> E++;
+            case H-> H++;
+            case L-> L++;
+            case PC-> PC++;
+            case SP-> SP++;
+            default-> throw new IllegalArgumentException("Invalid register: " + register);
         }
     }
     public int get(Reg register) {
@@ -30,6 +34,7 @@ public class Registers {
             case E: return E;
             case H: return H;
             case L: return L;
+            case I: return I;
             case PC: return PC;
             case SP: return SP;
             default: throw new IllegalArgumentException("Invalid register: " + register);
@@ -45,6 +50,7 @@ public class Registers {
             case E -> E = value & 0xFF;
             case H -> H = value & 0xFF;
             case L -> L = value & 0xFF;
+            case I -> I = value & 0xFF;
             case PC -> PC = value & 0xFFFF;
             case SP -> SP = value & 0xFFFF;
             default -> throw new IllegalArgumentException("Invalid register: " + register);
