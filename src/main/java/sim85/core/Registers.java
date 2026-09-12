@@ -13,15 +13,15 @@ public class Registers {
     public void incrementRegister(Reg register)
     {
         switch (register) {
-            case A-> A++;
-            case B-> B++;
-            case C-> C++;
-            case D-> D++;
-            case E-> E++;
-            case H-> H++;
-            case L-> L++;
-            case PC-> PC++;
-            case SP-> SP++;
+            case A-> A=(A+1)& 0xFF;
+            case B-> B=(B+1)& 0xFF;
+            case C-> C=(C+1)& 0xFF;
+            case D-> D=(D+1)& 0xFF;
+            case E-> E=(E+1)& 0xFF;
+            case H-> H=(H+1)& 0xFF;
+            case L-> L=(L+1)& 0xFF;
+            case PC-> PC=(PC+1)& 0xFFFF;
+            case SP-> SP=(SP+1)& 0xFFFF;
             default-> throw new IllegalArgumentException("Invalid register: " + register);
         }
     }

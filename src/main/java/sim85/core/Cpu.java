@@ -5,6 +5,10 @@ public class Cpu{
     final private Memory ram ;
     final private Flags flags ;
     final private Registers registers ;
+
+    private enum logicalIns{
+        OR,AND,XOR
+    }
     
     private void loadImmediate() //Loads Immediate data to Reg I 
     {
@@ -74,8 +78,52 @@ public class Cpu{
             regValue=registers.get(register);
         }
         int aReg=registers.get(Reg.A);
-        int result=aReg+regValue + (int)(useCarry?flags.isCarry():0);
-        registers.set(register, result);
+        int carryIn=(useCarry?flags.isCarry():false)?1:0;
+        int result=aReg+regValue + carryIn;
+        registers.set(Reg.A, result);
+        flags.updateAllFlags(result);
+    }
+    private void sub(Reg register,boolean useBorrow)
+    {
+        int regValue;
+        if(register==Reg.M)
+        {
+            regValue=ram.read(registers.getPair(Reg.H,Reg.L));
+        }
+        else{
+            regValue=registers.get(register);
+        }
+        int aReg=registers.get(Reg.A);
+        int result=aReg-regValue - ((useBorrow?flags.isCarry():false)?1:0);
+        registers.set(Reg.A, result);
+        flags.updateAllFlags(result);
+    }
+    private void cmp(Reg register)
+    {
+        int regA=registers.get(Reg.A);
+        sub(register,false);
+        registers.set(Reg.A,regA);
+        //perform comparision and then reset A back how it was   
+    }
+    private void logical(Reg register,logicalIns instruction)
+    {
+        int regValue;
+        if(register==Reg.M)
+        {
+            regValue=ram.read(registers.getPair(Reg.H,Reg.L));
+        }
+        else{
+            regValue=registers.get(register);
+        }
+        int result;
+        switch(instruction)
+        {
+            case OR  ->result=registers.get(Reg.A) | regValue;
+            case AND ->result=registers.get(Reg.A) & regValue; 
+            case XOR ->result=registers.get(Reg.A) ^ regValue;
+            default -> throw new IllegalArgumentException("Invalid Logical Instruction");
+        }
+        registers.set(Reg.A,result);
         flags.updateAllFlags(result);
     }
 
@@ -143,7 +191,9 @@ public class Cpu{
         loadImmediate();
         mov(Reg.I,Reg.L);
     } // MVI L
-    case 0x2F -> {} // CMA
+    case 0x2F -> {
+        registers.set(Reg.A,~registers.get(Reg.A));
+    } // CMA
     case 0x30 -> {} // SIM
     case 0x31 -> {} // LXI SP
     case 0x32 -> {} // STA
@@ -154,7 +204,9 @@ public class Cpu{
         loadImmediate();
         mov(Reg.I,Reg.M);
     } // MVI M
-    case 0x37 -> {} // STC
+    case 0x37 -> {
+      flags.setCarry(true);
+    } // STC
     case 0x39 -> {} // DAD SP
     case 0x3A -> {} // LDA
     case 0x3B -> inx(Reg.SP,false); // DCX SP
@@ -164,7 +216,9 @@ public class Cpu{
         loadImmediate();
         mov(Reg.I,Reg.A);    
     } // MVI A
-    case 0x3F -> {} // CMC
+    case 0x3F -> {
+      flags.setCarry(!flags.isCarry());
+    } // CMC
 
     case 0x40 -> mov(Reg.B,Reg.B); // MOV B,B
     case 0x41 -> mov(Reg.B,Reg.C); // MOV B,C
@@ -249,57 +303,121 @@ public class Cpu{
     case 0x8D -> add(Reg.L,true); // ADC L
     case 0x8E -> add(Reg.M,true); // ADC M
     case 0x8F -> add(Reg.A,true); // ADC A
-    case 0x90 -> {} // SUB B
-    case 0x91 -> {} // SUB C
-    case 0x92 -> {} // SUB D
-    case 0x93 -> {} // SUB E
-    case 0x94 -> {} // SUB H
-    case 0x95 -> {} // SUB L
-    case 0x96 -> {} // SUB M
-    case 0x97 -> {} // SUB A
-    case 0x98 -> {} // SBB B
-    case 0x99 -> {} // SBB C
-    case 0x9A -> {} // SBB D
-    case 0x9B -> {} // SBB E
-    case 0x9C -> {} // SBB H
-    case 0x9D -> {} // SBB L
-    case 0x9E -> {} // SBB M
-    case 0x9F -> {} // SBB A
+    case 0x90 -> sub(Reg.B,false);// SUB B
+    case 0x91 -> sub(Reg.C,false); // SUB C
+    case 0x92 -> sub(Reg.D,false);// SUB D
+    case 0x93 -> sub(Reg.E,false);// SUB E
+    case 0x94 -> sub(Reg.H,false);// SUB H
+    case 0x95 -> sub(Reg.L,false);// SUB L
+    case 0x96 -> sub(Reg.M,false);// SUB M
+    case 0x97 -> sub(Reg.A,false);// SUB A
+    case 0x98 -> sub(Reg.B,true);// SBB B
+    case 0x99 -> sub(Reg.C,true);// SBB C
+    case 0x9A -> sub(Reg.D,true);// SBB D
+    case 0x9B -> sub(Reg.E,true);// SBB E
+    case 0x9C -> sub(Reg.H,true);// SBB H
+    case 0x9D -> sub(Reg.L,true);// SBB L
+    case 0x9E -> sub(Reg.M,true);// SBB M
+    case 0x9F -> sub(Reg.A,true);// SBB A
+    
+    case 0xA0 -> logical(Reg.B, logicalIns.AND); // ANA B
+    case 0xA1 -> logical(Reg.C, logicalIns.AND); // ANA C
+    case 0xA2 -> logical(Reg.D, logicalIns.AND); // ANA D
+    case 0xA3 -> logical(Reg.E, logicalIns.AND); // ANA E
+    case 0xA4 -> logical(Reg.H, logicalIns.AND); // ANA H
+    case 0xA5 -> logical(Reg.L, logicalIns.AND); // ANA L
+    case 0xA6 -> logical(Reg.M, logicalIns.AND); // ANA M
+    case 0xA7 -> logical(Reg.A, logicalIns.AND); // ANA A
 
-    case 0xA0 -> {} // ANA B
-    case 0xA1 -> {} // ANA C
-    case 0xA2 -> {} // ANA D
-    case 0xA3 -> {} // ANA E
-    case 0xA4 -> {} // ANA H
-    case 0xA5 -> {} // ANA L
-    case 0xA6 -> {} // ANA M
-    case 0xA7 -> {} // ANA A
-    case 0xA8 -> {} // XRA B
-    case 0xA9 -> {} // XRA C
-    case 0xAA -> {} // XRA D
-    case 0xAB -> {} // XRA E
-    case 0xAC -> {} // XRA H
-    case 0xAD -> {} // XRA L
-    case 0xAE -> {} // XRA M
-    case 0xAF -> {} // XRA A
-    case 0xB0 -> {} // ORA B
-    case 0xB1 -> {} // ORA C
-    case 0xB2 -> {} // ORA D
-    case 0xB3 -> {} // ORA E
-    case 0xB4 -> {} // ORA H
-    case 0xB5 -> {} // ORA L
-    case 0xB6 -> {} // ORA M
-    case 0xB7 -> {} // ORA A
-    case 0xB8 -> {} // CMP B
-    case 0xB9 -> {} // CMP C
-    case 0xBA -> {} // CMP D
-    case 0xBB -> {} // CMP E
-    case 0xBC -> {} // CMP H
-    case 0xBD -> {} // CMP L
-    case 0xBE -> {} // CMP M
-    case 0xBF -> {} // CMP A
+    case 0xA8 -> logical(Reg.B, logicalIns.XOR); // XRA B
+    case 0xA9 -> logical(Reg.C, logicalIns.XOR); // XRA C
+    case 0xAA -> logical(Reg.D, logicalIns.XOR); // XRA D
+    case 0xAB -> logical(Reg.E, logicalIns.XOR); // XRA E
+    case 0xAC -> logical(Reg.H, logicalIns.XOR); // XRA H
+    case 0xAD -> logical(Reg.L, logicalIns.XOR); // XRA L
+    case 0xAE -> logical(Reg.M, logicalIns.XOR); // XRA M
+    case 0xAF -> logical(Reg.A, logicalIns.XOR); // XRA A
+
+    case 0xB0 -> logical(Reg.B, logicalIns.OR); // ORA B
+    case 0xB1 -> logical(Reg.C, logicalIns.OR); // ORA C
+    case 0xB2 -> logical(Reg.D, logicalIns.OR); // ORA D
+    case 0xB3 -> logical(Reg.E, logicalIns.OR); // ORA E
+    case 0xB4 -> logical(Reg.H, logicalIns.OR); // ORA H
+    case 0xB5 -> logical(Reg.L, logicalIns.OR); // ORA L
+    case 0xB6 -> logical(Reg.M, logicalIns.OR); // ORA M
+    case 0xB7 -> logical(Reg.A, logicalIns.OR); // ORA A
+
+    case 0xB8 -> cmp(Reg.B); // CMP B
+    case 0xB9 -> cmp(Reg.C); // CMP C
+    case 0xBA -> cmp(Reg.D); // CMP D
+    case 0xBB -> cmp(Reg.E); // CMP E
+    case 0xBC -> cmp(Reg.H); // CMP H
+    case 0xBD -> cmp(Reg.L); // CMP L
+    case 0xBE -> cmp(Reg.M); // CMP M
+    case 0xBF -> cmp(Reg.A); // CMP A
 
     case 0xC0 -> {} // RNZ
+    case 0xC1 -> {} // POP B
+    case 0xC2 -> {} // JNZ
+    case 0xC3 -> {} // JMP
+    case 0xC4 -> {} // CNZ
+    case 0xC5 -> {} // PUSH B
+    case 0xC6 -> {} // ADI
+    case 0xC7 -> {} // RST 0
+    case 0xC8 -> {} // RZ
+    case 0xC9 -> {} // RET
+    case 0xCA -> {} // JZ
+    case 0xCC -> {} // CZ
+    case 0xCD -> {} // CALL
+    case 0xCE -> {} // ACI
+    case 0xCF -> {} // RST 1
+
+    case 0xD0 -> {} // RNC
+    case 0xD1 -> {} // POP D
+    case 0xD2 -> {} // JNC
+    case 0xD3 -> {} // OUT
+    case 0xD4 -> {} // CNC
+    case 0xD5 -> {} // PUSH D
+    case 0xD6 -> {} // SUI
+    case 0xD7 -> {} // RST 2
+    case 0xD8 -> {} // RC
+    case 0xDA -> {} // JC
+    case 0xDB -> {} // IN
+    case 0xDC -> {} // CC
+    case 0xDE -> {} // SBI
+    case 0xDF -> {} // RST 3
+
+    case 0xE0 -> {} // RPO
+    case 0xE1 -> {} // POP H
+    case 0xE2 -> {} // JPO
+    case 0xE3 -> {} // XTHL
+    case 0xE4 -> {} // CPO
+    case 0xE5 -> {} // PUSH H
+    case 0xE6 -> {} // ANI
+    case 0xE7 -> {} // RST 4
+    case 0xE8 -> {} // RPE
+    case 0xE9 -> {} // PCHL
+    case 0xEA -> {} // JPE
+    case 0xEB -> {} // XCHG
+    case 0xEC -> {} // CPE
+    case 0xEE -> {} // XRI
+    case 0xEF -> {} // RST 5
+
+    case 0xF0 -> {} // RP
+    case 0xF1 -> {} // POP PSW
+    case 0xF2 -> {} // JP
+    case 0xF3 -> {} // DI
+    case 0xF4 -> {} // CP
+    case 0xF5 -> {} // PUSH PSW
+    case 0xF6 -> {} // ORI
+    case 0xF7 -> {} // RST 6
+    case 0xF8 -> {} // RM
+    case 0xF9 -> {} // SPHL
+    case 0xFA -> {} // JM
+    case 0xFB -> {} // EI
+    case 0xFC -> {} // CM
+    case 0xFE -> {} // CPI
+    case 0xFF -> {} // RST 7
 
     default -> throw new IllegalArgumentException("Unknown opcode: " + Integer.toHexString(instruction));
 }
