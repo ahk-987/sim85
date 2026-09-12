@@ -153,9 +153,9 @@ public class Cpu{
         loadImmediate();
         switch(register)//for higher byte
         {
-            case B-> mov(Reg.I,Reg.C );
+            case B-> mov(Reg.I,Reg.B );
             case D->mov(Reg.I,Reg.D);
-            case H->mov(Reg.I,Reg.L);
+            case H->mov(Reg.I,Reg.H);
             case SP->{
                 registers.set(Reg.SP, (registers.get(Reg.I)<<8)|lowForSP);
             }
@@ -209,15 +209,15 @@ public class Cpu{
 
         } 
         ram.write(registers.get(Reg.SP),higher);
-        registers.incrementRegister(Reg.SP);
+        registers.decrementRegister(Reg.SP);
         ram.write(registers.get(Reg.SP),lower);
-        registers.incrementRegister(Reg.SP);
+        registers.decrementRegister(Reg.SP);
     }
     private void pop(Reg regPair)
     {
-        registers.decrementRegister(Reg.SP);
+        registers.incrementRegister(Reg.SP);
         int lower=ram.read(registers.get(Reg.SP));
-        registers.decrementRegister(Reg.SP);
+        registers.incrementRegister(Reg.SP);
         int higher=ram.read(registers.get(Reg.SP));
         switch(regPair)
         {
@@ -238,7 +238,8 @@ public class Cpu{
                 registers.set(Reg.L,lower);
             }
             case PC->{
-                registers.set(Reg.PC,(higher<<8 | lower));
+                registers.set(Reg.PC,(higher<<8 | lower)-1);
+                //-1 as run auto increments PC so to counteract it
             }
         }
     }
@@ -544,14 +545,16 @@ public class Cpu{
     } // RNZ
     case 0xC1 -> pop(Reg.B); // POP B
     case 0xC2 -> {
+        int address=getLoadedAddress();
         if(!flags.isZero()){
-            jmp(getLoadedAddress());
+            jmp(address);
         }
     } // JNZ
     case 0xC3 -> jmp(getLoadedAddress()); // JMP
     case 0xC4 -> {
+        int address=getLoadedAddress();
         if(!flags.isZero()){
-            call(getLoadedAddress());
+            call(address);
         }
     } // CNZ
     case 0xC5 -> push(Reg.B); // PUSH B
@@ -567,13 +570,15 @@ public class Cpu{
     } // RZ
     case 0xC9 -> ret(); // RET
     case 0xCA -> {
+        int address=getLoadedAddress();
         if(flags.isZero()){
-            jmp(getLoadedAddress());
+            jmp(address);
         }
     } // JZ
     case 0xCC -> {
+        int address=getLoadedAddress();
         if(!flags.isZero()){
-            call(getLoadedAddress());
+            call(address);
         }
     } // CZ
     case 0xCD -> call(getLoadedAddress()); // CALL
@@ -591,16 +596,18 @@ public class Cpu{
     }  // RNC
     case 0xD1 -> pop(Reg.D); // POP D
     case 0xD2 -> {
+        int address=getLoadedAddress();
         if(!flags.isCarry())
         {
-            jmp(getLoadedAddress());
+            jmp(address);
         }
     } // JNC
     case 0xD3 -> {} // OUT
     case 0xD4 -> {
+        int address=getLoadedAddress();
         if(!flags.isCarry())
         {
-            call(getLoadedAddress());
+            call(address);
         }
     }  // CNC
     case 0xD5 -> push(Reg.D); // PUSH D
@@ -616,16 +623,18 @@ public class Cpu{
         }
     }  // RC
     case 0xDA -> {
+        int address=getLoadedAddress();
         if(flags.isCarry())
         {
-            jmp(getLoadedAddress());
+            jmp(address);
         }
     } // JC
     case 0xDB -> {} // IN
     case 0xDC -> {
+        int address=getLoadedAddress();
         if(flags.isCarry())
         {
-            call(getLoadedAddress());
+            call(address);
         }
     }  // CC
     case 0xDE -> {
@@ -642,9 +651,10 @@ public class Cpu{
     } // RPO
     case 0xE1 -> pop(Reg.H); // POP H
     case 0xE2 -> {
+        int address=getLoadedAddress();
         if(!flags.isParity())
         {
-            jmp(getLoadedAddress());
+            jmp(address);
         }
     } // JPO
     case 0xE3 -> {
@@ -656,9 +666,10 @@ public class Cpu{
         registers.setPair(Reg.B, Reg.C, bc); //bring back Original BC values
     } // XTHL
     case 0xE4 -> {
+        int address=getLoadedAddress();
         if(!flags.isParity())
         {
-            call(getLoadedAddress());
+            call(address);
         }
     } // CPO
     case 0xE5 -> push(Reg.H); // PUSH H
@@ -677,9 +688,10 @@ public class Cpu{
         jmp(registers.getPair(Reg.H, Reg.L));
     } // PCHL
     case 0xEA -> {
+        int address=getLoadedAddress();
         if(flags.isParity())
         {
-            jmp(getLoadedAddress());
+            jmp(address);
         }
     } // JPE
     case 0xEB -> {
@@ -689,9 +701,10 @@ public class Cpu{
         registers.setPair(Reg.D, Reg.E, hl);
     } // XCHG
     case 0xEC -> {
+        int address=getLoadedAddress();
         if(flags.isParity())
         {
-            call(getLoadedAddress());
+            call(address);
         }
     } // CPE
     case 0xEE -> {
@@ -708,16 +721,18 @@ public class Cpu{
     } // RP
     case 0xF1 -> pop(Reg.A); // POP PSW
     case 0xF2 -> {
+        int address=getLoadedAddress();
         if(!flags.isSign())
         {
-            jmp(getLoadedAddress());
+            jmp(address);
         }
     } // JP
     case 0xF3 -> {} // DI
     case 0xF4 -> {
+        int address=getLoadedAddress();
         if(!flags.isSign())
         {
-            call(getLoadedAddress());
+            call(address);
         }
     } // CP
     case 0xF5 -> push(Reg.A); // PUSH PSW
@@ -736,16 +751,18 @@ public class Cpu{
         registers.set(Reg.SP, registers.getPair(Reg.H, Reg.L));
     } // SPHL
     case 0xFA -> {
+        int address=getLoadedAddress();
         if(flags.isSign())
         {
-            jmp(getLoadedAddress());
+            jmp(address);
         }
     } // JM
     case 0xFB -> {} // EI
     case 0xFC -> {
+        int address=getLoadedAddress();
         if(flags.isSign())
         {
-            call(getLoadedAddress());
+            call(address);
         }
     } // CM
     case 0xFE -> {
