@@ -141,24 +141,23 @@ public class Cpu{
     {
         loadImmediate();
         int data=0;
-        switch(register)
+        switch(register)//for lower byte 
         {
-            case B-> mov(Reg.I,Reg.B );
-            case D->mov(Reg.I,Reg.B);
-            case H->mov(Reg.I,Reg.B);
-            case SP->data=registers.get(Reg.I);
+            case B-> mov(Reg.I,Reg.C );
+            case D->mov(Reg.I,Reg.E);
+            case H->mov(Reg.I,Reg.L);
+            case SP->{}//merged below with lower and upper byte joint
             default-> throw new IllegalArgumentException("Invalid LXI Register Pair");
         }
+        int lowForSP=registers.get(Reg.I);
         loadImmediate();
-        switch(register)
+        switch(register)//for higher byte
         {
             case B-> mov(Reg.I,Reg.C );
             case D->mov(Reg.I,Reg.D);
             case H->mov(Reg.I,Reg.L);
             case SP->{
-                data=data<<8;
-                data+=registers.get(Reg.I);
-                registers.set(register,data);
+                registers.set(Reg.SP, (registers.get(Reg.I)<<8)|lowForSP);
             }
             default-> throw new IllegalArgumentException("Invalid LXI Register Pair");
         }
@@ -202,8 +201,9 @@ public class Cpu{
                 lower=registers.get(Reg.L);
             }
             case PC -> {
-                higher = registers.get(Reg.PC) & 0xF0;
-                lower = registers.get(Reg.PC) & 0xF;
+                int pc=registers.get(Reg.PC)+1;
+                higher = ( pc>>8)& 0xFF;
+                lower = pc & 0xFF;
             }
             default -> throw new IllegalArgumentException("Invalid Argument for Push "+regPair);
 
@@ -215,10 +215,10 @@ public class Cpu{
     }
     private void pop(Reg regPair)
     {
+        registers.decrementRegister(Reg.SP);
         int lower=ram.read(registers.get(Reg.SP));
         registers.decrementRegister(Reg.SP);
         int higher=ram.read(registers.get(Reg.SP));
-        registers.decrementRegister(Reg.SP);
         switch(regPair)
         {
             case A->{
@@ -238,7 +238,7 @@ public class Cpu{
                 registers.set(Reg.L,lower);
             }
             case PC->{
-                registers.set(Reg.SP,(higher<<8 | lower));
+                registers.set(Reg.PC,(higher<<8 | lower));
             }
         }
     }
@@ -559,7 +559,7 @@ public class Cpu{
         loadImmediate();
         add(Reg.I,false);
     } // ADI
-    case 0xC7 -> {} // RST 0
+    case 0xC7 -> call(0*8); // RST 0
     case 0xC8 -> {
         if(flags.isZero()){
             ret();
@@ -581,7 +581,7 @@ public class Cpu{
         loadImmediate();
         add(Reg.I,true);
     } // ACI
-    case 0xCF -> {} // RST 1
+    case 0xCF -> call(1*8); // RST 1
 
     case 0xD0 -> {
         if(!flags.isCarry())
@@ -608,7 +608,7 @@ public class Cpu{
         loadImmediate();
         sub(Reg.I,false);
     } // SUI
-    case 0xD7 -> {} // RST 2
+    case 0xD7 -> call(2*8); // RST 2
     case 0xD8 -> {
         if(flags.isCarry())
         {
@@ -632,7 +632,7 @@ public class Cpu{
         loadImmediate();
         sub(Reg.I,true);
     } // SBI
-    case 0xDF -> {} // RST 3
+    case 0xDF -> call(3*8); // RST 3
 
     case 0xE0 -> {
         if(!flags.isParity())
@@ -647,7 +647,14 @@ public class Cpu{
             jmp(getLoadedAddress());
         }
     } // JPO
-    case 0xE3 -> {} // XTHL
+    case 0xE3 -> {
+        //using BC as temp here :)
+        int bc=registers.getPair(Reg.B,Reg.C);
+        pop(Reg.B);
+        push(Reg.H);
+        registers.setPair(Reg.H, Reg.L, registers.getPair(Reg.B, Reg.C));//move stack top value to HL
+        registers.setPair(Reg.B, Reg.C, bc); //bring back Original BC values
+    } // XTHL
     case 0xE4 -> {
         if(!flags.isParity())
         {
@@ -659,7 +666,7 @@ public class Cpu{
         loadImmediate();
         logical(Reg.I, logicalIns.AND);
     } // ANI
-    case 0xE7 -> {} // RST 4
+    case 0xE7 -> call(4*8); // RST 4
     case 0xE8 ->  {
         if(flags.isParity())
         {
@@ -691,7 +698,7 @@ public class Cpu{
         loadImmediate();
         logical(Reg.I, logicalIns.XOR);
     } // XRI
-    case 0xEF -> {} // RST 5
+    case 0xEF -> call(5*8); // RST 5
 
     case 0xF0 -> {
         if(!flags.isSign())
@@ -718,7 +725,7 @@ public class Cpu{
         loadImmediate();
         logical(Reg.I, logicalIns.OR);
     } // ORI
-    case 0xF7 -> {} // RST 6
+    case 0xF7 -> call(6*8); // RST 6
     case 0xF8 -> {
         if(flags.isSign())
         {
@@ -745,8 +752,8 @@ public class Cpu{
         loadImmediate();
         cmp(Reg.I);
     } // CPI
-    case 0xFF -> {} // RST 7
-
+    case 0xFF -> call(7*8); // RST 7
+    //RST just is like call but to a fixed predetermined address
     default -> throw new IllegalArgumentException("Unknown opcode: " + Integer.toHexString(instruction));
 }
     }
