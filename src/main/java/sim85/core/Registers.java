@@ -25,6 +25,21 @@ public class Registers {
             default-> throw new IllegalArgumentException("Invalid register: " + register);
         }
     }
+    public void decrementRegister(Reg register)
+    {
+        switch (register) {
+            case A-> A=(A-1)& 0xFF;
+            case B-> B=(B-1)& 0xFF;
+            case C-> C=(C-1)& 0xFF;
+            case D-> D=(D-1)& 0xFF;
+            case E-> E=(E-1)& 0xFF;
+            case H-> H=(H-1)& 0xFF;
+            case L-> L=(L-1)& 0xFF;
+            case PC-> PC=(PC-1)& 0xFFFF;
+            case SP-> SP=(SP-1)& 0xFFFF;
+            default-> throw new IllegalArgumentException("Invalid register: " + register);
+        }
+    }
     public int get(Reg register) {
         switch (register) {
             case A: return A;

@@ -178,9 +178,84 @@ public class Cpu{
         flags.setCarry((sum & 0x10000)!=0);
         registers.setPair(Reg.H,Reg.L,sum);
     }
+
+    private void push(Reg regPair)
+    {
+        int lower=0;
+        int higher=0;
+        switch(regPair)
+        {
+            case A->{
+                higher=registers.get(Reg.A);
+                lower=flags.getPSW();
+            }
+            case B->{
+                higher=registers.get(Reg.B);
+                lower=registers.get(Reg.C);
+            }
+            case D -> {
+                higher=registers.get(Reg.D);
+                lower=registers.get(Reg.E);
+            }
+            case H -> {
+                higher=registers.get(Reg.H);
+                lower=registers.get(Reg.L);
+            }
+            case PC -> {
+                higher = registers.get(Reg.PC) & 0xF0;
+                lower = registers.get(Reg.PC) & 0xF;
+            }
+            default -> throw new IllegalArgumentException("Invalid Argument for Push "+regPair);
+
+        } 
+        ram.write(registers.get(Reg.SP),higher);
+        registers.incrementRegister(Reg.SP);
+        ram.write(registers.get(Reg.SP),lower);
+        registers.incrementRegister(Reg.SP);
+    }
+    private void pop(Reg regPair)
+    {
+        int lower=ram.read(registers.get(Reg.SP));
+        registers.decrementRegister(Reg.SP);
+        int higher=ram.read(registers.get(Reg.SP));
+        registers.decrementRegister(Reg.SP);
+        switch(regPair)
+        {
+            case A->{
+                registers.set(Reg.A,higher);
+                flags.setPSW(lower);
+            }
+            case B->{
+                registers.set(Reg.B,higher);
+                registers.set(Reg.C,lower);
+            }
+            case D->{
+                registers.set(Reg.D,higher);
+                registers.set(Reg.E,lower);
+            }
+            case H->{
+                registers.set(Reg.H,higher);
+                registers.set(Reg.L,lower);
+            }
+            case PC->{
+                registers.set(Reg.SP,(higher<<8 | lower));
+            }
+        }
+    }
+    
     private void jmp(int address)
     {
-        registers.set(Reg.PC,address);
+        registers.set(Reg.PC,address-1);
+    }
+    private void ret()
+    {
+        pop(Reg.PC);
+    }
+
+    private void call(int address)
+    {
+        push(Reg.PC);
+        jmp(address);
     }
 
     private void decode(int instruction)
@@ -462,71 +537,214 @@ public class Cpu{
     case 0xBE -> cmp(Reg.M); // CMP M
     case 0xBF -> cmp(Reg.A); // CMP A
 
-    case 0xC0 -> {} // RNZ
-    case 0xC1 -> {} // POP B
+    case 0xC0 -> {
+        if(!flags.isZero()){
+            ret();
+        }
+    } // RNZ
+    case 0xC1 -> pop(Reg.B); // POP B
     case 0xC2 -> {
         if(!flags.isZero()){
             jmp(getLoadedAddress());
         }
     } // JNZ
     case 0xC3 -> jmp(getLoadedAddress()); // JMP
-    case 0xC4 -> {} // CNZ
-    case 0xC5 -> {} // PUSH B
-    case 0xC6 -> {} // ADI
+    case 0xC4 -> {
+        if(!flags.isZero()){
+            call(getLoadedAddress());
+        }
+    } // CNZ
+    case 0xC5 -> push(Reg.B); // PUSH B
+    case 0xC6 -> {
+        loadImmediate();
+        add(Reg.I,false);
+    } // ADI
     case 0xC7 -> {} // RST 0
-    case 0xC8 -> {} // RZ
-    case 0xC9 -> {} // RET
-    case 0xCA -> {} // JZ
-    case 0xCC -> {} // CZ
-    case 0xCD -> {} // CALL
-    case 0xCE -> {} // ACI
+    case 0xC8 -> {
+        if(flags.isZero()){
+            ret();
+        }
+    } // RZ
+    case 0xC9 -> ret(); // RET
+    case 0xCA -> {
+        if(flags.isZero()){
+            jmp(getLoadedAddress());
+        }
+    } // JZ
+    case 0xCC -> {
+        if(!flags.isZero()){
+            call(getLoadedAddress());
+        }
+    } // CZ
+    case 0xCD -> call(getLoadedAddress()); // CALL
+    case 0xCE -> {
+        loadImmediate();
+        add(Reg.I,true);
+    } // ACI
     case 0xCF -> {} // RST 1
 
-    case 0xD0 -> {} // RNC
-    case 0xD1 -> {} // POP D
-    case 0xD2 -> {} // JNC
+    case 0xD0 -> {
+        if(!flags.isCarry())
+        {
+            ret();
+        }
+    }  // RNC
+    case 0xD1 -> pop(Reg.D); // POP D
+    case 0xD2 -> {
+        if(!flags.isCarry())
+        {
+            jmp(getLoadedAddress());
+        }
+    } // JNC
     case 0xD3 -> {} // OUT
-    case 0xD4 -> {} // CNC
-    case 0xD5 -> {} // PUSH D
-    case 0xD6 -> {} // SUI
+    case 0xD4 -> {
+        if(!flags.isCarry())
+        {
+            call(getLoadedAddress());
+        }
+    }  // CNC
+    case 0xD5 -> push(Reg.D); // PUSH D
+    case 0xD6 -> {
+        loadImmediate();
+        sub(Reg.I,false);
+    } // SUI
     case 0xD7 -> {} // RST 2
-    case 0xD8 -> {} // RC
-    case 0xDA -> {} // JC
+    case 0xD8 -> {
+        if(flags.isCarry())
+        {
+            ret();
+        }
+    }  // RC
+    case 0xDA -> {
+        if(flags.isCarry())
+        {
+            jmp(getLoadedAddress());
+        }
+    } // JC
     case 0xDB -> {} // IN
-    case 0xDC -> {} // CC
-    case 0xDE -> {} // SBI
+    case 0xDC -> {
+        if(flags.isCarry())
+        {
+            call(getLoadedAddress());
+        }
+    }  // CC
+    case 0xDE -> {
+        loadImmediate();
+        sub(Reg.I,true);
+    } // SBI
     case 0xDF -> {} // RST 3
 
-    case 0xE0 -> {} // RPO
-    case 0xE1 -> {} // POP H
-    case 0xE2 -> {} // JPO
+    case 0xE0 -> {
+        if(!flags.isParity())
+        {
+            ret();
+        }
+    } // RPO
+    case 0xE1 -> pop(Reg.H); // POP H
+    case 0xE2 -> {
+        if(!flags.isParity())
+        {
+            jmp(getLoadedAddress());
+        }
+    } // JPO
     case 0xE3 -> {} // XTHL
-    case 0xE4 -> {} // CPO
-    case 0xE5 -> {} // PUSH H
-    case 0xE6 -> {} // ANI
+    case 0xE4 -> {
+        if(!flags.isParity())
+        {
+            call(getLoadedAddress());
+        }
+    } // CPO
+    case 0xE5 -> push(Reg.H); // PUSH H
+    case 0xE6 -> {
+        loadImmediate();
+        logical(Reg.I, logicalIns.AND);
+    } // ANI
     case 0xE7 -> {} // RST 4
-    case 0xE8 -> {} // RPE
-    case 0xE9 -> {} // PCHL
-    case 0xEA -> {} // JPE
-    case 0xEB -> {} // XCHG
-    case 0xEC -> {} // CPE
-    case 0xEE -> {} // XRI
+    case 0xE8 ->  {
+        if(flags.isParity())
+        {
+            ret();
+        }
+    }// RPE
+    case 0xE9 -> {
+        jmp(registers.getPair(Reg.H, Reg.L));
+    } // PCHL
+    case 0xEA -> {
+        if(flags.isParity())
+        {
+            jmp(getLoadedAddress());
+        }
+    } // JPE
+    case 0xEB -> {
+        int de=registers.getPair(Reg.D, Reg.E);
+        int hl=registers.getPair(Reg.H , Reg.L);
+        registers.setPair(Reg.H, Reg.L, de);
+        registers.setPair(Reg.D, Reg.E, hl);
+    } // XCHG
+    case 0xEC -> {
+        if(flags.isParity())
+        {
+            call(getLoadedAddress());
+        }
+    } // CPE
+    case 0xEE -> {
+        loadImmediate();
+        logical(Reg.I, logicalIns.XOR);
+    } // XRI
     case 0xEF -> {} // RST 5
 
-    case 0xF0 -> {} // RP
-    case 0xF1 -> {} // POP PSW
-    case 0xF2 -> {} // JP
+    case 0xF0 -> {
+        if(!flags.isSign())
+        {
+            ret();
+        }
+    } // RP
+    case 0xF1 -> pop(Reg.A); // POP PSW
+    case 0xF2 -> {
+        if(!flags.isSign())
+        {
+            jmp(getLoadedAddress());
+        }
+    } // JP
     case 0xF3 -> {} // DI
-    case 0xF4 -> {} // CP
-    case 0xF5 -> {} // PUSH PSW
-    case 0xF6 -> {} // ORI
+    case 0xF4 -> {
+        if(!flags.isSign())
+        {
+            call(getLoadedAddress());
+        }
+    } // CP
+    case 0xF5 -> push(Reg.A); // PUSH PSW
+    case 0xF6 -> {
+        loadImmediate();
+        logical(Reg.I, logicalIns.OR);
+    } // ORI
     case 0xF7 -> {} // RST 6
-    case 0xF8 -> {} // RM
-    case 0xF9 -> {} // SPHL
-    case 0xFA -> {} // JM
+    case 0xF8 -> {
+        if(flags.isSign())
+        {
+            ret();
+        }
+    } // RM
+    case 0xF9 -> {
+        registers.set(Reg.SP, registers.getPair(Reg.H, Reg.L));
+    } // SPHL
+    case 0xFA -> {
+        if(flags.isSign())
+        {
+            jmp(getLoadedAddress());
+        }
+    } // JM
     case 0xFB -> {} // EI
-    case 0xFC -> {} // CM
-    case 0xFE -> {} // CPI
+    case 0xFC -> {
+        if(flags.isSign())
+        {
+            call(getLoadedAddress());
+        }
+    } // CM
+    case 0xFE -> {
+        loadImmediate();
+        cmp(Reg.I);
+    } // CPI
     case 0xFF -> {} // RST 7
 
     default -> throw new IllegalArgumentException("Unknown opcode: " + Integer.toHexString(instruction));
