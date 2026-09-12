@@ -9,7 +9,14 @@ public class Cpu{
     private enum logicalIns{
         OR,AND,XOR
     }
-    
+    private int getLoadedAddress()
+    {
+        registers.incrementRegister(Reg.PC);
+        int lowerAddress=ram.read(registers.get(Reg.PC));
+        registers.incrementRegister(Reg.PC);
+        int higherAddress=ram.read(registers.get(Reg.PC));
+        return (higherAddress<<8 | lowerAddress);
+    }
     private void loadImmediate() //Loads Immediate data to Reg I 
     {
         registers.incrementRegister(Reg.PC);
@@ -130,13 +137,61 @@ public class Cpu{
         registers.set(Reg.A,result);
         flags.updateAllFlags(result);
     }
+    private void lxi(Reg register)
+    {
+        loadImmediate();
+        int data=0;
+        switch(register)
+        {
+            case B-> mov(Reg.I,Reg.B );
+            case D->mov(Reg.I,Reg.B);
+            case H->mov(Reg.I,Reg.B);
+            case SP->data=registers.get(Reg.I);
+            default-> throw new IllegalArgumentException("Invalid LXI Register Pair");
+        }
+        loadImmediate();
+        switch(register)
+        {
+            case B-> mov(Reg.I,Reg.C );
+            case D->mov(Reg.I,Reg.D);
+            case H->mov(Reg.I,Reg.L);
+            case SP->{
+                data=data<<8;
+                data+=registers.get(Reg.I);
+                registers.set(register,data);
+            }
+            default-> throw new IllegalArgumentException("Invalid LXI Register Pair");
+        }
+    }
+    private void dad(Reg register)
+    {
+        int regPair;
+        switch(register)
+        {
+            case B->regPair=registers.getPair(Reg.B, Reg.C);
+            case D->regPair=registers.getPair(Reg.D, Reg.E);
+            case H->regPair=registers.getPair(Reg.H, Reg.L);
+            case SP->regPair=registers.get(Reg.SP);
+            default->throw new IllegalArgumentException("Wrong Register Pair in DAD");
+        }
+        int sum=regPair+registers.getPair(Reg.H,Reg.L);
+        flags.setCarry((sum & 0x10000)!=0);
+        registers.setPair(Reg.H,Reg.L,sum);
+    }
+    private void jmp(int address)
+    {
+        registers.set(Reg.PC,address);
+    }
 
     private void decode(int instruction)
     {
         switch (instruction) {
     case 0x00 -> {} // NOP
-    case 0x01 -> {} // LXI B
-    case 0x02 -> {} // STAX B
+    case 0x01 -> lxi(Reg.B); // LXI B
+    case 0x02 -> {
+        int address=registers.getPair(Reg.B, Reg.C);
+        ram.write(address,registers.get(Reg.A));
+    } // STAX B
     case 0x03 -> inx(Reg.B,true); // INX B
     case 0x04 -> inr(Reg.B,true); // INR B
     case 0x05 -> inr(Reg.B,false); // DCR B
@@ -144,9 +199,17 @@ public class Cpu{
         loadImmediate();
         mov(Reg.I,Reg.B);
     } // MVI B
-    case 0x07 -> {} // RLC
-    case 0x09 -> {} // DAD B
-    case 0x0A -> {} // LDAX B
+    case 0x07 -> {
+        int a = registers.get(Reg.A);
+        int highBit = (a >> 7) & 0x1;
+        flags.setCarry(highBit != 0);
+        registers.set(Reg.A, (a << 1) | highBit);
+    } // RLC
+    case 0x09 -> dad(Reg.B); // DAD B
+    case 0x0A -> {
+        int address=registers.getPair(Reg.B, Reg.C);
+        registers.set(Reg.A,ram.read(address));
+    } // LDAX B
     case 0x0B -> inx(Reg.B,false); // DCX B
     case 0x0C -> inr(Reg.C,true); // INR C
     case 0x0D -> inr(Reg.C,false); // DCR C
@@ -154,9 +217,17 @@ public class Cpu{
         loadImmediate();
         mov(Reg.I,Reg.C);
     } // MVI C
-    case 0x0F -> {} // RRC
-    case 0x11 -> {} // LXI D
-    case 0x12 -> {} // STAX D
+    case 0x0F -> {
+        int a = registers.get(Reg.A);
+        int lowBit = a & 0x1;
+        flags.setCarry(lowBit != 0);
+        registers.set(Reg.A, (a >> 1) | (lowBit << 7));
+    } // RRC
+    case 0x11 -> lxi(Reg.D); // LXI D
+    case 0x12 -> {     
+        int address=registers.getPair(Reg.D, Reg.E);
+        ram.write(address,registers.get(Reg.A));
+} // STAX D
     case 0x13 -> inx(Reg.D,true); // INX D
     case 0x14 -> inr(Reg.D,true); // INR D
     case 0x15 -> inr(Reg.D,false); // DCR D
@@ -164,9 +235,18 @@ public class Cpu{
         loadImmediate();
         mov(Reg.I,Reg.D);
     } // MVI D
-    case 0x17 -> {} // RAL
-    case 0x19 -> {} // DAD D
-    case 0x1A -> {} // LDAX D
+    case 0x17 -> {
+        int a = registers.get(Reg.A);
+        int highBit = (a >> 7) & 0x1;
+        int oldCarry = flags.isCarry() ? 1 : 0;  // read old CY BEFORE overwriting it
+        flags.setCarry(highBit != 0);
+        registers.set(Reg.A, (a << 1) | oldCarry);
+    } // RAL
+    case 0x19 -> dad(Reg.D); // DAD D
+    case 0x1A -> {
+        int address=registers.getPair(Reg.D, Reg.E);
+        registers.set(Reg.A,ram.read(address));
+    } // LDAX D
     case 0x1B -> inx(Reg.D,false); // DCX D
     case 0x1C -> inr(Reg.E,true); // INR E
     case 0x1D -> inr(Reg.E,false); // DCR E
@@ -174,10 +254,21 @@ public class Cpu{
         loadImmediate();
         mov(Reg.I,Reg.E);
     } // MVI E
-    case 0x1F -> {} // RAR
+    case 0x1F -> {
+        int a = registers.get(Reg.A);
+        int lowBit = a & 0x1;
+        int oldCarry = flags.isCarry() ? 1 : 0;  // read old CY BEFORE overwriting it
+        flags.setCarry(lowBit != 0);
+        registers.set(Reg.A, (a >> 1) | (oldCarry << 7));
+    } // RAR
     case 0x20 -> {} // RIM
-    case 0x21 -> {} // LXI H
-    case 0x22 -> {} // SHLD
+    //skipping interrupts rn
+    case 0x21 -> lxi(Reg.H); // LXI H
+    case 0x22 -> {
+        int address=getLoadedAddress();
+        ram.write(address,registers.get(Reg.L));
+        ram.write(address+1,registers.get(Reg.H));
+    } // SHLD
     case 0x23 -> inx(Reg.H,true); // INX H
     case 0x24 -> inr(Reg.H,true); // INR H
     case 0x25 -> inr(Reg.H,false); // DCR H
@@ -186,8 +277,13 @@ public class Cpu{
         mov(Reg.I,Reg.H);
     } // MVI H
     case 0x27 -> {} // DAA
-    case 0x29 -> {} // DAD H
-    case 0x2A -> {} // LHLD
+    //Too much hassle for AC so skip DAA (decimal adjust accumulator)
+    case 0x29 -> dad(Reg.H); // DAD H
+    case 0x2A -> {
+        int address=getLoadedAddress();
+        registers.set(Reg.L,ram.read(address));
+        registers.set(Reg.H,ram.read(address+1));
+    } // LHLD
     case 0x2B -> inx(Reg.H,false); // DCX H
     case 0x2C -> inr(Reg.L,true); // INR L
     case 0x2D -> inr(Reg.L,false); // DCR L
@@ -199,8 +295,12 @@ public class Cpu{
         registers.set(Reg.A,~registers.get(Reg.A));
     } // CMA
     case 0x30 -> {} // SIM
-    case 0x31 -> {} // LXI SP
-    case 0x32 -> {} // STA
+    //Interupt instruction Skipp
+    case 0x31 -> lxi(Reg.SP); // LXI SP
+    case 0x32 -> {
+        int address=getLoadedAddress();
+        ram.write(address, registers.get(Reg.A));
+    } // STA
     case 0x33 -> inx(Reg.SP,true); // INX SP
     case 0x34 -> inr(Reg.M,true); // INR M
     case 0x35 -> inr(Reg.M,false); // DCR M
@@ -211,8 +311,11 @@ public class Cpu{
     case 0x37 -> {
       flags.setCarry(true);
     } // STC
-    case 0x39 -> {} // DAD SP
-    case 0x3A -> {} // LDA
+    case 0x39 -> dad(Reg.SP); // DAD SP
+    case 0x3A -> {
+        int address=getLoadedAddress();
+        registers.set(Reg.A,ram.read(address));
+    } // LDA
     case 0x3B -> inx(Reg.SP,false); // DCX SP
     case 0x3C -> inr(Reg.A,true); // INR A
     case 0x3D -> inr(Reg.A,false); // DCR A
@@ -361,8 +464,12 @@ public class Cpu{
 
     case 0xC0 -> {} // RNZ
     case 0xC1 -> {} // POP B
-    case 0xC2 -> {} // JNZ
-    case 0xC3 -> {} // JMP
+    case 0xC2 -> {
+        if(!flags.isZero()){
+            jmp(getLoadedAddress());
+        }
+    } // JNZ
+    case 0xC3 -> jmp(getLoadedAddress()); // JMP
     case 0xC4 -> {} // CNZ
     case 0xC5 -> {} // PUSH B
     case 0xC6 -> {} // ADI
