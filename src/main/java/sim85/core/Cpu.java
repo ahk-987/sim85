@@ -39,17 +39,18 @@ public class Cpu{
     }
 
     private void inr(Reg register,boolean increase){
+        int value;
         if(register == Reg.M)
         {
             int address=registers.getPair(Reg.H,Reg.L);
-            int valueOfAddress=ram.read(address)+(increase?1:-1);
-            ram.write(address,valueOfAddress);
+            value=ram.read(address)+(increase?1:-1);
+            ram.write(address,value);
         }
         else{
-            int value=registers.get(register)+(increase?1:-1);
+            value=registers.get(register)+(increase?1:-1);
             registers.set(register,value);
-            flags.updateZSP(value);
         }
+            flags.updateZSP(value);
     }
 
     private void mov(Reg source,Reg destination){
@@ -64,6 +65,9 @@ public class Cpu{
         if(destination==Reg.M)
         {
             ram.write(registers.getPair(Reg.H,Reg.L),sourceValue);
+        }
+        else{
+            registers.set(destination,sourceValue);
         }
     }
 
@@ -219,72 +223,71 @@ public class Cpu{
     case 0x3F -> {
       flags.setCarry(!flags.isCarry());
     } // CMC
-
     case 0x40 -> mov(Reg.B,Reg.B); // MOV B,B
-    case 0x41 -> mov(Reg.B,Reg.C); // MOV B,C
-    case 0x42 -> mov(Reg.B,Reg.D); // MOV B,D
-    case 0x43 -> mov(Reg.B,Reg.E); // MOV B,E
-    case 0x44 -> mov(Reg.B,Reg.H); // MOV B,H
-    case 0x45 -> mov(Reg.B,Reg.L); // MOV B,L
-    case 0x46 -> mov(Reg.B,Reg.M); // MOV B,M
-    case 0x47 -> mov(Reg.B,Reg.A); // MOV B,A
-    case 0x48 -> mov(Reg.C,Reg.B); // MOV C,B
+    case 0x41 -> mov(Reg.C,Reg.B); // MOV B,C
+    case 0x42 -> mov(Reg.D,Reg.B); // MOV B,D
+    case 0x43 -> mov(Reg.E,Reg.B); // MOV B,E
+    case 0x44 -> mov(Reg.H,Reg.B); // MOV B,H
+    case 0x45 -> mov(Reg.L,Reg.B); // MOV B,L
+    case 0x46 -> mov(Reg.M,Reg.B); // MOV B,M
+    case 0x47 -> mov(Reg.A,Reg.B); // MOV B,A
+    case 0x48 -> mov(Reg.B,Reg.C); // MOV C,B
     case 0x49 -> mov(Reg.C,Reg.C); // MOV C,C
-    case 0x4A -> mov(Reg.C,Reg.D); // MOV C,D
-    case 0x4B -> mov(Reg.C,Reg.E); // MOV C,E
-    case 0x4C -> mov(Reg.C,Reg.H); // MOV C,H
-    case 0x4D -> mov(Reg.C,Reg.L); // MOV C,L
-    case 0x4E -> mov(Reg.C,Reg.M); // MOV C,M
-    case 0x4F -> mov(Reg.C,Reg.A); // MOV C,A
-    case 0x50 -> mov(Reg.D,Reg.B); // MOV D,B
-    case 0x51 -> mov(Reg.D,Reg.C); // MOV D,C
+    case 0x4A -> mov(Reg.D,Reg.C); // MOV C,D
+    case 0x4B -> mov(Reg.E,Reg.C); // MOV C,E
+    case 0x4C -> mov(Reg.H,Reg.C); // MOV C,H
+    case 0x4D -> mov(Reg.L,Reg.C); // MOV C,L
+    case 0x4E -> mov(Reg.M,Reg.C); // MOV C,M
+    case 0x4F -> mov(Reg.A,Reg.C); // MOV C,A
+    case 0x50 -> mov(Reg.B,Reg.D); // MOV D,B
+    case 0x51 -> mov(Reg.C,Reg.D); // MOV D,C
     case 0x52 -> mov(Reg.D,Reg.D); // MOV D,D
-    case 0x53 -> mov(Reg.D,Reg.E); // MOV D,E
-    case 0x54 -> mov(Reg.D,Reg.H); // MOV D,H
-    case 0x55 -> mov(Reg.D,Reg.L); // MOV D,L
-    case 0x56 -> mov(Reg.D,Reg.M); // MOV D,M
-    case 0x57 -> mov(Reg.D,Reg.A); // MOV D,A
-    case 0x58 -> mov(Reg.E,Reg.B); // MOV E,B
-    case 0x59 -> mov(Reg.E,Reg.C); // MOV E,C
-    case 0x5A -> mov(Reg.E,Reg.D); // MOV E,D
+    case 0x53 -> mov(Reg.E,Reg.D); // MOV D,E
+    case 0x54 -> mov(Reg.H,Reg.D); // MOV D,H
+    case 0x55 -> mov(Reg.L,Reg.D); // MOV D,L
+    case 0x56 -> mov(Reg.M,Reg.D); // MOV D,M
+    case 0x57 -> mov(Reg.A,Reg.D); // MOV D,A
+    case 0x58 -> mov(Reg.B,Reg.E); // MOV E,B
+    case 0x59 -> mov(Reg.C,Reg.E); // MOV E,C
+    case 0x5A -> mov(Reg.D,Reg.E); // MOV E,D
     case 0x5B -> mov(Reg.E,Reg.E); // MOV E,E
-    case 0x5C -> mov(Reg.E,Reg.H); // MOV E,H
-    case 0x5D -> mov(Reg.E,Reg.L); // MOV E,L
-    case 0x5E -> mov(Reg.E,Reg.M); // MOV E,M
-    case 0x5F -> mov(Reg.E,Reg.A); // MOV E,A
-    case 0x60 -> mov(Reg.H,Reg.B); // MOV H,B
-    case 0x61 -> mov(Reg.H,Reg.C); // MOV H,C
-    case 0x62 -> mov(Reg.H,Reg.D); // MOV H,D
-    case 0x63 -> mov(Reg.H,Reg.E); // MOV H,E
+    case 0x5C -> mov(Reg.H,Reg.E); // MOV E,H
+    case 0x5D -> mov(Reg.L,Reg.E); // MOV E,L
+    case 0x5E -> mov(Reg.M,Reg.E); // MOV E,M
+    case 0x5F -> mov(Reg.A,Reg.E); // MOV E,A
+    case 0x60 -> mov(Reg.B,Reg.H); // MOV H,B
+    case 0x61 -> mov(Reg.C,Reg.H); // MOV H,C
+    case 0x62 -> mov(Reg.D,Reg.H); // MOV H,D
+    case 0x63 -> mov(Reg.E,Reg.H); // MOV H,E
     case 0x64 -> mov(Reg.H,Reg.H); // MOV H,H
-    case 0x65 -> mov(Reg.H,Reg.L); // MOV H,L
-    case 0x66 -> mov(Reg.H,Reg.M); // MOV H,M
-    case 0x67 -> mov(Reg.H,Reg.A); // MOV H,A
-    case 0x68 -> mov(Reg.L,Reg.B); // MOV L,B
-    case 0x69 -> mov(Reg.L,Reg.C); // MOV L,C
-    case 0x6A -> mov(Reg.L,Reg.D); // MOV L,D
-    case 0x6B -> mov(Reg.L,Reg.E);// MOV L,E
-    case 0x6C -> mov(Reg.L,Reg.H); // MOV L,H
+    case 0x65 -> mov(Reg.L,Reg.H); // MOV H,L
+    case 0x66 -> mov(Reg.M,Reg.H); // MOV H,M
+    case 0x67 -> mov(Reg.A,Reg.H); // MOV H,A
+    case 0x68 -> mov(Reg.B,Reg.L); // MOV L,B
+    case 0x69 -> mov(Reg.C,Reg.L); // MOV L,C
+    case 0x6A -> mov(Reg.D,Reg.L); // MOV L,D
+    case 0x6B -> mov(Reg.E,Reg.L); // MOV L,E
+    case 0x6C -> mov(Reg.H,Reg.L); // MOV L,H
     case 0x6D -> mov(Reg.L,Reg.L); // MOV L,L
-    case 0x6E -> mov(Reg.L,Reg.M); // MOV L,M
-    case 0x6F -> mov(Reg.L,Reg.A); // MOV L,A
-    case 0x70 -> mov(Reg.M,Reg.B); // MOV M,B
-    case 0x71 -> mov(Reg.M,Reg.C); // MOV M,C
-    case 0x72 -> mov(Reg.M,Reg.D); // MOV M,D
-    case 0x73 -> mov(Reg.M,Reg.E); // MOV M,E
-    case 0x74 -> mov(Reg.M,Reg.H); // MOV M,H
-    case 0x75 -> mov(Reg.M,Reg.L); // MOV M,L
-    case 0x76 ->  {
+    case 0x6E -> mov(Reg.M,Reg.L); // MOV L,M
+    case 0x6F -> mov(Reg.A,Reg.L); // MOV L,A
+    case 0x70 -> mov(Reg.B,Reg.M); // MOV M,B
+    case 0x71 -> mov(Reg.C,Reg.M); // MOV M,C
+    case 0x72 -> mov(Reg.D,Reg.M); // MOV M,D
+    case 0x73 -> mov(Reg.E,Reg.M); // MOV M,E
+    case 0x74 -> mov(Reg.H,Reg.M); // MOV M,H
+    case 0x75 -> mov(Reg.L,Reg.M); // MOV M,L
+    case 0x76 ->  { 
         running=false;
     }// HLT
-    case 0x77 -> mov(Reg.M,Reg.A); // MOV M,A
-    case 0x78 -> mov(Reg.A,Reg.B); // MOV A,B
-    case 0x79 -> mov(Reg.A,Reg.C); // MOV A,C
-    case 0x7A -> mov(Reg.A,Reg.D); // MOV A,D
-    case 0x7B -> mov(Reg.A,Reg.E); // MOV A,E
-    case 0x7C -> mov(Reg.A,Reg.H); // MOV A,H
-    case 0x7D -> mov(Reg.A,Reg.L); // MOV A,L
-    case 0x7E -> mov(Reg.A,Reg.M); // MOV A,M
+    case 0x77 -> mov(Reg.A,Reg.M); // MOV M,A
+    case 0x78 -> mov(Reg.B,Reg.A); // MOV A,B
+    case 0x79 -> mov(Reg.C,Reg.A); // MOV A,C
+    case 0x7A -> mov(Reg.D,Reg.A); // MOV A,D
+    case 0x7B -> mov(Reg.E,Reg.A); // MOV A,E
+    case 0x7C -> mov(Reg.H,Reg.A); // MOV A,H
+    case 0x7D -> mov(Reg.L,Reg.A); // MOV A,L
+    case 0x7E -> mov(Reg.M,Reg.A); // MOV A,M
     case 0x7F -> mov(Reg.A,Reg.A); // MOV A,A
 
     case 0x80 -> add(Reg.B,false); // ADD B
@@ -319,7 +322,7 @@ public class Cpu{
     case 0x9D -> sub(Reg.L,true);// SBB L
     case 0x9E -> sub(Reg.M,true);// SBB M
     case 0x9F -> sub(Reg.A,true);// SBB A
-    
+
     case 0xA0 -> logical(Reg.B, logicalIns.AND); // ANA B
     case 0xA1 -> logical(Reg.C, logicalIns.AND); // ANA C
     case 0xA2 -> logical(Reg.D, logicalIns.AND); // ANA D
