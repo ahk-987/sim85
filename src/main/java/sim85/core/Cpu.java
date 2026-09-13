@@ -782,9 +782,47 @@ public class Cpu{
     }
     public void run() // Still incomplete ig idk 
     {
+        running =true;
         while(running){
+            step();//to isolate ig not sure
+        }
+    }
+    public void resetCpu() //reset flags & registers 
+    {
+        flags.reset();
+        registers.reset();
+    }
+    public void step()
+    {
         decode(ram.read(registers.get(Reg.PC)));
         registers.incrementRegister(Reg.PC); // increment PC 
+    }
+    public int getRegisters(Reg register)
+    {
+        return registers.get(register);
+    }
+    public void setPC(int value)
+    {
+        registers.set(Reg.PC, value);
+    }
+    public void setSP(int value)
+    {
+        registers.set(Reg.SP,value);
+    }
+    public int[] getMemory()
+    {
+        return ram.getCompleteMemory().clone(); 
+        // to prevent orignal altered in case of return object altered
+    }
+    public int readMemory(int address)
+    {
+        return ram.read(address);
+    }
+    public void loadMemory(int startAddress, int[] program)
+    {
+        for (int i = 0; i < program.length; i++)
+        {
+            ram.write(startAddress + i, program[i]);
         }
     }
 

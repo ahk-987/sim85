@@ -80,5 +80,9 @@ public class Registers {
         set(high, (value >> 8) & 0xFF);
         set(low, value & 0xFF);
     }
+    public void reset()
+    {
+        SP=PC=A=B=C=D=E=H=L=I=0;
+    }
 
 }
