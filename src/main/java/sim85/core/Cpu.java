@@ -2,7 +2,7 @@ package sim85.core;
 import sim85.core.Registers.Reg;
 public class Cpu{
     private boolean running=true; 
-    final private int maxExecutableInstructions=100`000;
+    final private int maxExecutableInstructions=100000;
     final private Memory ram ;
     final private Flags flags ;
     final private Registers registers ;
@@ -578,7 +578,7 @@ public class Cpu{
     } // JZ
     case 0xCC -> {
         int address=getLoadedAddress();
-        if(!flags.isZero()){
+        if(flags.isZero()){
             call(address);
         }
     } // CZ
