@@ -2,6 +2,7 @@ package sim85.core;
 import sim85.core.Registers.Reg;
 public class Cpu{
     private boolean running=true; 
+    final private int maxExecutableInstructions=100`000;
     final private Memory ram ;
     final private Flags flags ;
     final private Registers registers ;
@@ -208,17 +209,17 @@ public class Cpu{
             default -> throw new IllegalArgumentException("Invalid Argument for Push "+regPair);
 
         } 
+        registers.decrementRegister(Reg.SP);
         ram.write(registers.get(Reg.SP),higher);
         registers.decrementRegister(Reg.SP);
         ram.write(registers.get(Reg.SP),lower);
-        registers.decrementRegister(Reg.SP);
     }
     private void pop(Reg regPair)
     {
-        registers.incrementRegister(Reg.SP);
         int lower=ram.read(registers.get(Reg.SP));
         registers.incrementRegister(Reg.SP);
         int higher=ram.read(registers.get(Reg.SP));
+        registers.incrementRegister(Reg.SP);
         switch(regPair)
         {
             case A->{
@@ -780,17 +781,28 @@ public class Cpu{
         flags= new Flags();
         registers= new Registers();
     }
-    public void run() // Still incomplete ig idk 
+    public void run() throws IllegalArgumentException // Still incomplete ig idk 
     {
         running =true;
-        while(running){
+        int instructionsExecuted=0;
+        while(running 
+            && 
+            (instructionsExecuted<maxExecutableInstructions)){
+            
             step();//to isolate ig not sure
+            instructionsExecuted++;
         }
     }
     public void resetCpu() //reset flags & registers 
     {
         flags.reset();
         registers.reset();
+        running=false;
+    }
+    public void resetAll()
+    {
+        resetCpu();
+        ram.reset();
     }
     public void step()
     {
@@ -825,6 +837,16 @@ public class Cpu{
             ram.write(startAddress + i, program[i]);
         }
     }
-
+    public boolean isHalted()
+    {
+        return running;
+    }
+    public int getFlags()
+    {
+        return flags.getPSW();
+    }
+    public void stop(){
+        running=false;
+    }
     
 }
